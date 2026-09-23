@@ -148,8 +148,66 @@ class TestNormalizeModelName:
 
         print(f"Comparing result: Expected 'claude-opus-4.8', Got '{result}'")
         assert result == "claude-opus-4.8"
-    
-    # === Removal of date suffix ===
+
+    def test_preserves_opus_5_without_minor(self):
+        """
+        What it does: claude-opus-5 → claude-opus-5 (unchanged)
+        Goal: Opus 5 has no minor version; the runtime endpoint only accepts the
+              bare "claude-opus-5" form, so normalization must not invent a minor.
+        """
+        print("Action: Normalizing 'claude-opus-5'...")
+        result = normalize_model_name("claude-opus-5")
+
+        print(f"Comparing result: Expected 'claude-opus-5', Got '{result}'")
+        assert result == "claude-opus-5"
+
+    def test_preserves_sonnet_5_without_minor(self):
+        """
+        What it does: claude-sonnet-5 → claude-sonnet-5 (unchanged)
+        Goal: Same guarantee as Opus 5 for the Sonnet 5 id.
+        """
+        print("Action: Normalizing 'claude-sonnet-5'...")
+        result = normalize_model_name("claude-sonnet-5")
+
+        print(f"Comparing result: Expected 'claude-sonnet-5', Got '{result}'")
+        assert result == "claude-sonnet-5"
+
+    def test_strips_date_suffix_opus_5(self):
+        """
+        What it does: claude-opus-5-20260901 → claude-opus-5
+        Goal: Date-stamped ids (the form Claude Code sends) must collapse to the
+              bare id the runtime endpoint accepts.
+        """
+        print("Action: Normalizing 'claude-opus-5-20260901'...")
+        result = normalize_model_name("claude-opus-5-20260901")
+
+        print(f"Comparing result: Expected 'claude-opus-5', Got '{result}'")
+        assert result == "claude-opus-5"
+
+    def test_strips_date_suffix_sonnet_5(self):
+        """
+        What it does: claude-sonnet-5-20260901 → claude-sonnet-5
+        Goal: Same date-stripping guarantee for Sonnet 5.
+        """
+        print("Action: Normalizing 'claude-sonnet-5-20260901'...")
+        result = normalize_model_name("claude-sonnet-5-20260901")
+
+        print(f"Comparing result: Expected 'claude-sonnet-5', Got '{result}'")
+        assert result == "claude-sonnet-5"
+
+    def test_normalizes_inverted_opus_5(self):
+        """
+        What it does: claude-5-opus-high → claude-opus-5? (documents actual behavior)
+        Goal: Guard the inverted-format path against silently producing a broken
+              id for the 5-series. The inverted pattern requires a dot minor, so
+              "claude-5-opus-high" is NOT rewritten and falls through unchanged.
+        """
+        print("Action: Normalizing 'claude-5-opus-high'...")
+        result = normalize_model_name("claude-5-opus-high")
+
+        print(f"Comparing result: Expected 'claude-5-opus-high', Got '{result}'")
+        assert result == "claude-5-opus-high"
+
     
     def test_strips_date_suffix_haiku(self):
         """

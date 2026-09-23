@@ -1117,6 +1117,113 @@ class TestFallbackModels:
 
         assert all("modelId" in m and m["modelId"] for m in FALLBACK_MODELS)
 
+    def test_opus_5_present(self):
+        """
+        What it does: Verifies claude-opus-5 is in the fallback list.
+        Purpose: The runtime endpoint has no /ListAvailableModels, so the static
+                 list is the only way Opus 5 can appear in /v1/models.
+        """
+        from kiro.config import FALLBACK_MODELS
+
+        model_ids = [m["modelId"] for m in FALLBACK_MODELS]
+        print(f"Fallback model ids: {model_ids}")
+        assert "claude-opus-5" in model_ids
+
+    def test_sonnet_5_present(self):
+        """
+        What it does: Verifies claude-sonnet-5 is in the fallback list.
+        Purpose: Same discovery gap as Opus 5 - it must be declared statically.
+        """
+        from kiro.config import FALLBACK_MODELS
+
+        model_ids = [m["modelId"] for m in FALLBACK_MODELS]
+        print(f"Fallback model ids: {model_ids}")
+        assert "claude-sonnet-5" in model_ids
+
+    def test_five_series_ids_use_bare_major_version(self):
+        """
+        What it does: Verifies the 5-series entries are spelled without a minor
+                      version or context-window suffix.
+        Purpose: runtime.kiro.dev rejects "claude-opus-5.0" and "claude-opus-5-1m"
+                 with INVALID_MODEL_ID; only the bare id is accepted. A typo here
+                 would break every request routed to these models.
+        """
+        from kiro.config import FALLBACK_MODELS
+
+        model_ids = {m["modelId"] for m in FALLBACK_MODELS}
+        print(f"Fallback model ids: {sorted(model_ids)}")
+        for rejected in ("claude-opus-5.0", "claude-opus-5-1m",
+                         "claude-sonnet-5.0", "claude-sonnet-5-1m"):
+            assert rejected not in model_ids, f"{rejected} is not a valid Kiro model id"
+
+    def test_five_series_declare_no_token_limits(self):
+        """
+        What it does: Verifies the 5-series entries declare no tokenLimits.
+        Purpose: Their real context window is not advertised by the runtime
+                 endpoint. Declaring a guessed value would corrupt token
+                 accounting; users override via MODEL_CONTEXT_WINDOWS instead.
+        """
+        from kiro.config import FALLBACK_MODELS
+
+        for model_id in ("claude-opus-5", "claude-sonnet-5"):
+            entry = next(m for m in FALLBACK_MODELS if m["modelId"] == model_id)
+            print(f"{model_id} entry: {entry}")
+            assert "tokenLimits" not in entry
+
+    @pytest.mark.asyncio
+    async def test_five_series_resolve_verified_from_fallback_cache(self):
+        """
+        What it does: Resolves 5-series ids (bare and date-stamped) through a
+                      cache populated from FALLBACK_MODELS.
+        Purpose: Prove the models are routable, not just listed - resolution must
+                 report source="cache"/is_verified=True and emit the exact Kiro id.
+        """
+        from kiro.cache import ModelInfoCache
+        from kiro.config import FALLBACK_MODELS
+        from kiro.model_resolver import ModelResolver
+
+        cache = ModelInfoCache()
+        await cache.update(FALLBACK_MODELS)
+        resolver = ModelResolver(cache=cache, hidden_models={})
+
+        for requested, expected in [
+            ("claude-opus-5", "claude-opus-5"),
+            ("claude-sonnet-5", "claude-sonnet-5"),
+            ("claude-opus-5-20260901", "claude-opus-5"),
+            ("claude-sonnet-5-20260901", "claude-sonnet-5"),
+        ]:
+            resolution = resolver.resolve(requested)
+            print(f"'{requested}' -> '{resolution.internal_id}' (source={resolution.source})")
+            assert resolution.internal_id == expected
+            assert resolution.source == "cache"
+            assert resolution.is_verified is True
+
+    def test_five_series_listed_in_available_models(self):
+        """
+        What it does: Verifies both 5-series ids surface in get_available_models().
+        Purpose: That method backs /v1/models - this is the user-visible symptom
+                 the change is meant to fix.
+        """
+        import asyncio
+
+        from kiro.cache import ModelInfoCache
+        from kiro.config import FALLBACK_MODELS, HIDDEN_FROM_LIST, MODEL_ALIASES
+        from kiro.model_resolver import ModelResolver
+
+        cache = ModelInfoCache()
+        asyncio.run(cache.update(FALLBACK_MODELS))
+        resolver = ModelResolver(
+            cache=cache,
+            hidden_models={},
+            aliases=MODEL_ALIASES,
+            hidden_from_list=HIDDEN_FROM_LIST,
+        )
+
+        available = resolver.get_available_models()
+        print(f"Available models: {available}")
+        assert "claude-opus-5" in available
+        assert "claude-sonnet-5" in available
+
 
 class TestShutdownTimeoutConfig:
     """Tests for SHUTDOWN_TIMEOUT configuration."""

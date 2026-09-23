@@ -285,6 +285,11 @@ FALLBACK_MODELS: List[Dict[str, Any]] = [
     {"modelId": "claude-sonnet-4"},
     {"modelId": "claude-sonnet-4.5"},
     {"modelId": "claude-sonnet-4.6"},
+    # Claude Sonnet 5: verified accepted by runtime.kiro.dev as "claude-sonnet-5".
+    # No tokenLimits declared - the real context window is not advertised by the
+    # runtime endpoint, so accounting falls back to DEFAULT_MAX_INPUT_TOKENS.
+    # Override with MODEL_CONTEXT_WINDOWS if your plan grants a larger window.
+    {"modelId": "claude-sonnet-5"},
     {"modelId": "claude-haiku-4.5"},
     {"modelId": "claude-opus-4.5"},
     {"modelId": "claude-opus-4.6"},
@@ -292,6 +297,10 @@ FALLBACK_MODELS: List[Dict[str, Any]] = [
     # Claude Opus 4.8 (released 2026-05-28): 1M token context window by default
     # on the Claude API / Amazon Bedrock (Kiro is Bedrock-backed), 128k max output.
     {"modelId": "claude-opus-4.8", "tokenLimits": {"maxInputTokens": 1000000}},
+    # Claude Opus 5: verified accepted by runtime.kiro.dev as "claude-opus-5"
+    # (the "claude-opus-5.0" and "claude-opus-5-1m" spellings are rejected with
+    # INVALID_MODEL_ID). Context window is not advertised - see note above.
+    {"modelId": "claude-opus-5"},
     {"modelId": "deepseek-3.2"},
     {"modelId": "glm-5"},
     {"modelId": "minimax-m2.1"},
