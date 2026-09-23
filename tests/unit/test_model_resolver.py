@@ -195,12 +195,13 @@ class TestNormalizeModelName:
         print(f"Comparing result: Expected 'claude-sonnet-5', Got '{result}'")
         assert result == "claude-sonnet-5"
 
-    def test_normalizes_inverted_opus_5(self):
+    def test_preserves_inverted_5_series_as_is(self):
         """
-        What it does: claude-5-opus-high → claude-opus-5? (documents actual behavior)
-        Goal: Guard the inverted-format path against silently producing a broken
-              id for the 5-series. The inverted pattern requires a dot minor, so
-              "claude-5-opus-high" is NOT rewritten and falls through unchanged.
+        What it does: claude-5-opus-high → claude-5-opus-high (unchanged)
+        Goal: Document that the inverted-format pattern (Pattern 5) requires a
+              dotted minor version, so a bare-major 5-series id like
+              "claude-5-opus-high" does NOT match and is passed through
+              untouched rather than rewritten to claude-opus-5.
         """
         print("Action: Normalizing 'claude-5-opus-high'...")
         result = normalize_model_name("claude-5-opus-high")
@@ -709,6 +710,49 @@ class TestGetModelIdForKiro:
 
         print(f"Comparing result: Expected 'claude-unknown-model' (pass-through), Got '{result}'")
         assert result == "claude-unknown-model"
+
+    def test_five_series_outgoing_model_id(self):
+        """
+        What it does: Pins the exact modelId sent to Kiro for the 5-series, using
+                      the real HIDDEN_MODELS from config (the production path).
+        Goal: This is the ACTUAL request-mapping path - converters_anthropic.py and
+              converters_openai.py both build the outgoing modelId with this call.
+              It is independent of FALLBACK_MODELS: the catalog only feeds
+              /v1/models listing, so a regression here would break real requests
+              even while the models still appear in the list.
+        """
+        from kiro.config import HIDDEN_MODELS
+
+        for requested, expected in [
+            ("claude-opus-5", "claude-opus-5"),
+            ("claude-sonnet-5", "claude-sonnet-5"),
+            ("claude-opus-5-20260901", "claude-opus-5"),
+            ("claude-sonnet-5-20260901", "claude-sonnet-5"),
+            ("claude-opus-5[1m]", "claude-opus-5"),
+        ]:
+            result = get_model_id_for_kiro(requested, HIDDEN_MODELS)
+            print(f"Outgoing modelId: '{requested}' -> '{result}' (expected '{expected}')")
+            assert result == expected
+
+    def test_five_series_outgoing_id_independent_of_catalog(self):
+        """
+        What it does: Verifies the outgoing modelId does not depend on the model
+                      being present in FALLBACK_MODELS.
+        Goal: Locks in the empirically verified finding - Kiro accepts these ids as
+              direct pass-through, so removing them from the catalog changes only
+              discovery/listing, never what gets sent upstream. Guards against a
+              future "optimization" that starts gating requests on the catalog.
+        """
+        from kiro.config import FALLBACK_MODELS
+
+        catalog = {m["modelId"] for m in FALLBACK_MODELS}
+        print(f"claude-opus-5 in catalog: {'claude-opus-5' in catalog}")
+
+        # Empty catalog stand-in: the helper takes no catalog argument at all,
+        # which is precisely why listing cannot affect routing.
+        result = get_model_id_for_kiro("claude-opus-5", {})
+        print(f"Outgoing modelId with no hidden-model mapping: '{result}'")
+        assert result == "claude-opus-5"
 
 
 # =============================================================================

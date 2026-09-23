@@ -1146,7 +1146,10 @@ class TestFallbackModels:
                       version or context-window suffix.
         Purpose: runtime.kiro.dev rejects "claude-opus-5.0" and "claude-opus-5-1m"
                  with INVALID_MODEL_ID; only the bare id is accepted. A typo here
-                 would break every request routed to these models.
+                 would advertise an id in /v1/models that Kiro then rejects with
+                 400, so the catalog must match the accepted spelling exactly.
+                 (Outgoing request ids come from get_model_id_for_kiro(), not
+                 from this list - see TestGetModelIdForKiro.)
         """
         from kiro.config import FALLBACK_MODELS
 
@@ -1175,8 +1178,11 @@ class TestFallbackModels:
         """
         What it does: Resolves 5-series ids (bare and date-stamped) through a
                       cache populated from FALLBACK_MODELS.
-        Purpose: Prove the models are routable, not just listed - resolution must
-                 report source="cache"/is_verified=True and emit the exact Kiro id.
+        Purpose: Cover the listing/discovery path only - with the ids in the
+                 catalog, resolution reports source="cache"/is_verified=True
+                 instead of falling through to "passthrough". This does NOT
+                 exercise request routing: the outgoing modelId is built by
+                 get_model_id_for_kiro(), which never reads this catalog.
         """
         from kiro.cache import ModelInfoCache
         from kiro.config import FALLBACK_MODELS
