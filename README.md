@@ -44,6 +44,10 @@ Originally made with ❤️ by [@Jwadow](https://github.com/jwadow) • Maintain
 
 ### 💳 Paid / higher tiers (Pro, Pro+, Power)
 
+👑 **Claude Opus 5** — Newest flagship. Kiro's backend accepts it as a direct pass-through model ID; this fork lists it in `/v1/models` so clients can discover and select it.
+
+🚀 **Claude Sonnet 5** — Latest Sonnet generation. Same as Opus 5: listed by this fork for discovery, with requests passed straight through to Kiro.
+
 👑 **Claude Opus 4.8** — Flagship with a **1M-token context window**; experimental rollout to Pro/Pro+/Power. This fork supports it out of the box once your account has access. (Earlier Opus 4.5–4.7 also paid-tier.)
 
 🚀 **Claude Sonnet 4.6** — Latest Sonnet; a full upgrade from 4.5, approaching Opus 4.6 intelligence while being more token-efficient.
